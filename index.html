@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECOBOTTLE Loop</title>
+<style>
+  :root{
+    --verde:#3BAA4A; --verde-osc:#1F7A34; --azul:#1E3A8A; --azul-cl:#3B82F6;
+    --amarillo:#E8C547; --naranja:#E67E22; --fondo:#F2F7F4; --texto:#1b2430;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  body{background:#d9e6df;display:flex;justify-content:center;min-height:100vh;color:var(--texto)}
+  .app{width:100%;max-width:420px;min-height:100vh;background:var(--fondo);position:relative;padding-bottom:80px}
+  header{background:linear-gradient(135deg,var(--verde),var(--azul));color:#fff;padding:18px 20px;border-radius:0 0 24px 24px}
+  header h1{font-size:1.3rem}
+  header p{font-size:.85rem;opacity:.9}
+  .pts{float:right;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px;font-weight:700;font-size:.85rem}
+  main{padding:16px}
+  .screen{display:none;animation:fade .3s}
+  .screen.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1}}
+  h2{font-size:1.15rem;margin-bottom:10px;color:var(--azul)}
+  .card{background:#fff;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .tile{background:#fff;border:none;border-radius:16px;padding:16px 10px;text-align:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.06);font-size:.9rem;font-weight:600;color:var(--texto)}
+  .tile span{display:block;font-size:1.8rem;margin-bottom:6px}
+  .tile:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--naranja);outline-offset:2px}
+  .btn{background:var(--verde);color:#fff;border:none;border-radius:12px;padding:12px 16px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;margin-top:8px}
+  .btn.sec{background:var(--azul-cl)}
+  .btn.small{width:auto;padding:8px 12px;font-size:.85rem;margin:4px}
+  label{display:block;font-weight:600;margin:10px 0 4px;font-size:.9rem}
+  input,select{width:100%;padding:10px;border:1px solid #ccd;border-radius:10px;font-size:1rem}
+  .ring{width:180px;height:180px;margin:10px auto;position:relative}
+  .ring svg{transform:rotate(-90deg)}
+  .ring .txt{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ring .txt b{font-size:1.6rem;color:var(--azul)}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee}
+  .row:last-child{border:none}
+  .tag{font-size:.75rem;background:#e6f4ea;color:var(--verde-osc);padding:3px 8px;border-radius:10px}
+  .big{font-size:2rem;font-weight:800;color:var(--verde-osc)}
+  .steps{list-style:none;counter-reset:s}
+  .steps li{counter-increment:s;padding:8px 0 8px 36px;position:relative}
+  .steps li::before{content:counter(s);position:absolute;left:0;top:6px;width:26px;height:26px;border-radius:50%;background:var(--verde);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+  .cycle{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;font-size:.85rem}
+  .cycle div{background:#e6f4ea;padding:8px 10px;border-radius:10px}
+  .cycle .arrow{background:none;padding:8px 0}
+  nav{position:fixed;bottom:0;width:100%;max-width:420px;background:#fff;display:flex;justify-content:space-around;padding:8px 0;box-shadow:0 -2px 10px rgba(0,0,0,.08)}
+  nav button{background:none;border:none;font-size:.7rem;cursor:pointer;color:#667;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 8px}
+  nav button span{font-size:1.3rem}
+  nav button.on{color:var(--verde-osc);font-weight:700}
+  #map{width:100%;height:180px;border-radius:12px;background:#cfe8d5}
+  .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--azul);color:#fff;padding:10px 18px;border-radius:20px;opacity:0;transition:.3s;pointer-events:none;z-index:10}
+  .toast.show{opacity:1}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <span class="pts" id="ptsHeader" aria-label="EcoPuntos">🌱 0</span>
+    <h1>ECOBOTTLE Loop</h1>
+    <p>Hidratación inteligente para un planeta sostenible</p>
+  </header>
+
+  <main>
+    <!-- REGISTRO -->
+    <section class="screen" id="onboarding">
+      <div class="card">
+        <h2>¡Hola! Vamos a crear tu perfil 💧</h2>
+        <p>Calcularemos cuánta agua necesitas cada día.</p>
+        <label for="fNombre">Nombre</label>
+        <input id="fNombre" placeholder="Tu nombre">
+        <label for="fEdad">Edad</label>
+        <input id="fEdad" type="number" min="12" max="99" value="20">
+        <label for="fPeso">Peso (kg)</label>
+        <input id="fPeso" type="number" min="30" max="200" value="65">
+        <label for="fAct">Nivel de actividad</label>
+        <select id="fAct">
+          <option value="0">Bajo</option>
+          <option value="400" selected>Medio (deporte 2-3 días)</option>
+          <option value="800">Alto (deporte casi a diario)</option>
+        </select>
+        <button class="btn" onclick="registrar()">Empezar</button>
+      </div>
+    </section>
+
+    <!-- INICIO -->
+    <section class="screen" id="inicio">
+      <h2 id="saludo">¡Hola!</h2>
+      <div class="card">
+        <p><b>Ciclo ECOBOTTLE</b>: tu botella nunca termina en la basura.</p><br>
+        <div class="cycle">
+          <div>💧 Usar</div><div class="arrow">→</div>
+          <div>🚰 Rellenar</div><div class="arrow">→</div>
+          <div>🔧 Reparar</div><div class="arrow">→</div>
+          <div>♻️ Devolver</div><div class="arrow">→</div>
+          <div>🏭 Nueva botella</div>
+        </div>
+      </div>
+      <div class="grid">
+        <button class="tile" onclick="ir('hidratacion')"><span>💧</span>Hidratación</button>
+        <button class="tile" onclick="ir('mapa')"><span>🗺️</span>Rellenar</button>
+        <button class="tile" onclick="ir('reparar')"><span>🔧</span>Reparar</button>
+        <button class="tile" onclick="ir('devolver')"><span>♻️</span>Devolver</button>
+        <button class="tile" onclick="ir('traza')"><span>🔍</span>Trazabilidad</button>
+        <button class="tile" onclick="ir('puntos')"><span>🎁</span>EcoPuntos</button>
+        <button class="tile" onclick="ir('impacto')"><span>🌍</span>Mi impacto</button>
+        <button class="tile" onclick="ir('tienda')"><span>🛒</span>Tienda</button>
+      </div>
+    </section>
+
+    <!-- HIDRATACIÓN -->
+    <section class="screen" id="hidratacion">
+      <h2>Tu hidratación de hoy</h2>
+      <div class="card">
+        <div class="ring">
+          <svg width="180" height="180" aria-hidden="true">
+            <circle cx="90" cy="90" r="78" stroke="#e3ece6" stroke-width="14" fill="none"/>
+            <circle id="arc" cx="90" cy="90" r="78" stroke="url(#g)" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="490" stroke-dashoffset="490"/>
+            <defs><linearGradient id="g"><stop offset="0" stop-color="#3BAA4A"/><stop offset="1" stop-color="#3B82F6"/></linearGradient></defs>
+          </svg>
+          <div class="txt" aria-live="polite"><b id="mlHoy">0 ml</b><small id="mlObj">de 2000 ml</small></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="beber(250)">+250 ml</button>
+          <button class="btn sec" onclick="beber(500)">+500 ml</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="row"><span>🔔 Recordatorios cada 2 h</span><input type="checkbox" id="recordatorio" style="width:auto" onchange="toggleRec()" aria-label="Activar recordatorios"></div>
+        <div class="row"><span>📶 Botella conectada</span><span class="tag">Sincronizada</span></div>
+        <div class="row"><span>🔥 Racha actual</span><b id="racha">0 días</b></div>
+      </div>
+    </section>
+
+    <!-- MAPA RELLENADO -->
+    <section class="screen" id="mapa">
+      <h2>Puntos de rellenado</h2>
+      <div class="card">
+        <svg id="map" viewBox="0 0 300 180" role="img" aria-label="Mapa con puntos de rellenado cercanos">
+          <rect width="300" height="180" fill="#d7ecdc"/>
+          <path d="M0 90 H300 M150 0 V180 M40 0 L260 180" stroke="#fff" stroke-width="10"/>
+          <circle cx="150" cy="90" r="8" fill="#3B82F6"/><text x="160" y="85" font-size="10">Tú</text>
+          <text x="70" y="50" font-size="20">📍</text><text x="220" y="60" font-size="20">📍</text>
+          <text x="100" y="140" font-size="20">📍</text><text x="230" y="150" font-size="20">📍</text>
+        </svg>
+      </div>
+      <div class="card" id="listaPuntos"></div>
+    </section>
+
+    <!-- REPARAR -->
+    <section class="screen" id="reparar">
+      <h2>Repara antes de tirar 🔧</h2>
+      <div class="card">
+        <p>Alarga la vida de tu ECOBOTTLE cambiando solo la pieza que falla.</p>
+        <div id="piezas"></div>
+      </div>
+      <div class="card">
+        <h2>Tutoriales</h2>
+        <div class="row"><span>▶️ Cambiar la tapa (2 min)</span><button class="btn small" onclick="tutorial()">Ver</button></div>
+        <div class="row"><span>▶️ Sustituir la batería del sensor (5 min)</span><button class="btn small" onclick="tutorial()">Ver</button></div>
+        <div class="row"><span>▶️ Limpieza correcta</span><button class="btn small" onclick="tutorial()">Ver</button></div>
+      </div>
+    </section>
+
+    <!-- DEVOLVER -->
+    <section class="screen" id="devolver">
+      <h2>Devuelve tu botella ♻️</h2>
+      <div class="card">
+        <p>Cuando tu botella llegue al final de su vida, la reciclamos para fabricar una nueva.</p><br>
+        <ol class="steps">
+          <li>Escanea el código QR de la base de la botella.</li>
+          <li>Elige un punto ECOBOTTLE o pide recogida a domicilio.</li>
+          <li>Recibe <b>200 EcoPuntos</b> y un 20% de descuento en tu próxima botella.</li>
+        </ol>
+        <button class="btn" onclick="escanear()">📷 Escanear QR</button>
+        <div id="devolOpc" class="hidden">
+          <button class="btn sec" onclick="devolver('punto')">📍 Llevar a un punto</button>
+          <button class="btn sec" onclick="devolver('casa')">🚚 Recogida a domicilio</button>
+        </div>
+      </div>
+      <div class="card"><div class="row"><span>Botellas devueltas</span><b id="nDevol">0</b></div></div>
+    </section>
+
+    <!-- TRAZABILIDAD -->
+    <section class="screen" id="traza">
+      <h2>La vida de tu botella 🔍</h2>
+      <div class="card">
+        <div class="row"><span>🧴 Origen</span><span>Plástico 100% reciclado</span></div>
+        <div class="row"><span>♻️ Botellas recicladas usadas</span><b>12</b></div>
+        <div class="row"><span>🏭 Fabricación</span><span>Barcelona, 2026</span></div>
+        <div class="row"><span>🚚 Transporte</span><span>Km 0 — 85 km</span></div>
+        <div class="row"><span>🔄 Destino final</span><span>Nueva ECOBOTTLE</span></div>
+      </div>
+      <div class="card">
+        <h2>Lineal vs circular</h2>
+        <p><b>Economía lineal:</b> extraer → fabricar → usar → tirar.</p><br>
+        <p><b>ECOBOTTLE (circular):</b> reciclar → fabricar → usar → reparar → devolver → volver a fabricar. Ningún residuo.</p>
+      </div>
+    </section>
+
+    <!-- ECOPUNTOS -->
+    <section class="screen" id="puntos">
+      <h2>EcoPuntos 🎁</h2>
+      <div class="card" style="text-align:center">
+        <p>Tienes</p><p class="big" id="ptsBig">0</p><p>EcoPuntos</p>
+      </div>
+      <div class="card">
+        <h2>Cómo ganar puntos</h2>
+        <div class="row"><span>💧 Cumplir el objetivo diario</span><span class="tag">+20</span></div>
+        <div class="row"><span>🚰 Rellenar en una fuente</span><span class="tag">+10</span></div>
+        <div class="row"><span>🔧 Reparar una pieza</span><span class="tag">+50</span></div>
+        <div class="row"><span>♻️ Devolver la botella</span><span class="tag">+200</span></div>
+        <div class="row"><span>📲 Compartir tu impacto</span><span class="tag">+15</span></div>
+      </div>
+      <div class="card"><h2>Canjear</h2><div id="premios"></div></div>
+    </section>
+
+    <!-- IMPACTO -->
+    <section class="screen" id="impacto">
+      <h2>Mi impacto 🌍</h2>
+      <div class="grid">
+        <div class="card" style="text-align:center"><p class="big" id="botAhorr">0</p><small>botellas de plástico evitadas</small></div>
+        <div class="card" style="text-align:center"><p class="big" id="co2">0</p><small>kg de CO₂ evitados</small></div>
+      </div>
+      <div class="card">
+        <h2>Retos</h2>
+        <div class="row"><span>🏅 7 días seguidos hidratado</span><span class="tag" id="r1">Pendiente</span></div>
+        <div class="row"><span>🏅 Evita 50 botellas</span><span class="tag" id="r2">Pendiente</span></div>
+        <div class="row"><span>🏅 Cierra el ciclo (devuelve 1)</span><span class="tag" id="r3">Pendiente</span></div>
+      </div>
+      <button class="btn" onclick="compartir()">📲 Compartir en redes</button>
+    </section>
+
+    <!-- TIENDA -->
+    <section class="screen" id="tienda">
+      <h2>ECOBOTTLE 🛒</h2>
+      <div class="card" style="text-align:center">
+        <p style="font-size:4rem" aria-hidden="true">🧴</p>
+        <p><b>ECOBOTTLE Smart</b></p>
+        <p>Conectada · Ergonómica · 100% reciclada</p>
+        <p class="big">39,95 €</p>
+        <label for="color">Color</label>
+        <select id="color"><option>Negro</option><option>Verde</option><option>Azul</option><option>Blanco</option></select>
+        <button class="btn" onclick="toast('🛒 Añadida al carrito')">Comprar</button>
+        <p id="descInfo" style="margin-top:8px;font-size:.85rem"></p>
+      </div>
+    </section>
+  </main>
+
+  <nav id="nav" class="hidden" aria-label="Navegación principal">
+    <button data-s="inicio" onclick="ir('inicio')"><span>🏠</span>Inicio</button>
+    <button data-s="hidratacion" onclick="ir('hidratacion')"><span>💧</span>Agua</button>
+    <button data-s="devolver" onclick="ir('devolver')"><span>♻️</span>Devolver</button>
+    <button data-s="puntos" onclick="ir('puntos')"><span>🎁</span>Puntos</button>
+    <button data-s="impacto" onclick="ir('impacto')"><span>🌍</span>Impacto</button>
+  </nav>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+// ---------- Estado guardado en el dispositivo ----------
+const KEY = 'ecobottle_loop';
+let st = JSON.parse(localStorage.getItem(KEY) || 'null') || {
+  nombre:'', objetivo:2000, hoy:0, fecha:new Date().toDateString(),
+  totalMl:0, puntos:0, racha:0, devueltas:0, objetivoCumplido:false, descuento:false
+};
+const guardar = () => localStorage.setItem(KEY, JSON.stringify(st));
+
+// Reinicia el contador diario si cambia el día
+if (st.fecha !== new Date().toDateString()) {
+  st.racha = st.objetivoCumplido ? st.racha + 1 : 0;
+  st.hoy = 0; st.objetivoCumplido = false; st.fecha = new Date().toDateString(); guardar();
+}
+
+// ---------- Navegación ----------
+function ir(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id));
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.s === id));
+  window.scrollTo(0,0); pintar();
+}
+function toast(msg){
+  const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+function sumar(p, msg){ st.puntos += p; guardar(); pintar(); toast(`${msg} +${p} 🌱`); }
+
+// ---------- Registro ----------
+function registrar(){
+  const nombre = document.getElementById('fNombre').value.trim();
+  const peso = +document.getElementById('fPeso').value;
+  if (!nombre || !peso) return toast('Rellena nombre y peso');
+  st.nombre = nombre;
+  st.objetivo = Math.round((peso * 35 + +document.getElementById('fAct').value) / 50) * 50;
+  guardar(); document.getElementById('nav').classList.remove('hidden'); ir('inicio');
+}
+
+// ---------- Hidratación ----------
+function beber(ml){
+  st.hoy += ml; st.totalMl += ml;
+  if (!st.objetivoCumplido && st.hoy >= st.objetivo){ st.objetivoCumplido = true; sumar(20,'🎉 ¡Objetivo cumplido!'); }
+  else { guardar(); pintar(); toast(`💧 +${ml} ml`); }
+}
+function toggleRec(){
+  const on = document.getElementById('recordatorio').checked;
+  if (on && 'Notification' in window) Notification.requestPermission();
+  toast(on ? '🔔 Recordatorios activados' : 'Recordatorios desactivados');
+}
+
+// ---------- Datos de ejemplo ----------
+const puntosAgua = [
+  {n:'Fuente Plaza Mayor', d:'200 m', t:'Fuente pública'},
+  {n:'Gimnasio FitCity', d:'450 m', t:'Punto ECOBOTTLE'},
+  {n:'Cafetería Verde', d:'600 m', t:'Rellenado gratis'},
+  {n:'Universidad - Biblioteca', d:'1,1 km', t:'Punto ECOBOTTLE + devolución'}
+];
+const piezas = [
+  {n:'Tapa de recambio', p:'4,95 €'}, {n:'Sensor inteligente', p:'9,95 €'},
+  {n:'Batería', p:'5,95 €'}, {n:'Junta de silicona', p:'1,95 €'}
+];
+const premios = [
+  {n:'Junta de silicona gratis', c:100}, {n:'Tapa de color gratis', c:250},
+  {n:'20% en nueva ECOBOTTLE', c:400}, {n:'Entrada evento ECOBOTTLE Run', c:600}
+];
+
+function pintar(){
+  document.getElementById('ptsHeader').textContent = '🌱 ' + st.puntos;
+  document.getElementById('saludo').textContent = `¡Hola, ${st.nombre || 'eco-héroe'}! 👋`;
+  // Anillo de progreso
+  const pct = Math.min(st.hoy / st.objetivo, 1);
+  document.getElementById('arc').style.strokeDashoffset = 490 - 490 * pct;
+  document.getElementById('mlHoy').textContent = st.hoy + ' ml';
+  document.getElementById('mlObj').textContent = 'de ' + st.objetivo + ' ml';
+  document.getElementById('racha').textContent = st.racha + ' días';
+  // Listas
+  document.getElementById('listaPuntos').innerHTML = puntosAgua.map(p =>
+    `<div class="row"><div><b>${p.n}</b><br><small>${p.t} · ${p.d}</small></div>
+     <button class="btn small" onclick="sumar(10,'🚰 Rellenado registrado')">Rellené aquí</button></div>`).join('');
+  document.getElementById('piezas').innerHTML = piezas.map(p =>
+    `<div class="row"><span>${p.n}</span><button class="btn small" onclick="sumar(50,'🔧 ¡Pieza reparada!')">${p.p}</button></div>`).join('');
+  document.getElementById('premios').innerHTML = premios.map((p,i) =>
+    `<div class="row"><span>${p.n}</span><button class="btn small" ${st.puntos < p.c ? 'disabled style="opacity:.5"' : ''}
+     onclick="canjear(${i})">${p.c} pts</button></div>`).join('');
+  document.getElementById('ptsBig').textContent = st.puntos;
+  // Impacto (1 botella = 500 ml; ~82 g CO₂ por botella de plástico)
+  const bot = Math.floor(st.totalMl / 500);
+  document.getElementById('botAhorr').textContent = bot;
+  document.getElementById('co2').textContent = (bot * 0.082).toFixed(1);
+  document.getElementById('nDevol').textContent = st.devueltas;
+  const ok = (id, c) => { const e = document.getElementById(id); e.textContent = c ? '✅ Logrado' : 'Pendiente'; };
+  ok('r1', st.racha >= 7); ok('r2', bot >= 50); ok('r3', st.devueltas > 0);
+  document.getElementById('descInfo').textContent = st.descuento ? '✅ Tienes un 20% de descuento por devolver tu botella' : '';
+}
+
+// ---------- Devolución / canje / compartir ----------
+function escanear(){ toast('📷 QR leído: ECOBOTTLE #EB-' + Math.floor(Math.random()*90000+10000)); document.getElementById('devolOpc').classList.remove('hidden'); }
+function devolver(tipo){
+  st.devueltas++; st.descuento = true;
+  document.getElementById('devolOpc').classList.add('hidden');
+  sumar(200, tipo === 'casa' ? '🚚 Recogida programada' : '📍 Lleva tu botella al punto');
+}
+function canjear(i){
+  const p = premios[i]; if (st.puntos < p.c) return;
+  st.puntos -= p.c; guardar(); pintar(); toast('🎁 Canjeado: ' + p.n);
+}
+function tutorial(){ toast('▶️ Tutorial disponible próximamente'); }
+async function compartir(){
+  const bot = Math.floor(st.totalMl / 500);
+  const texto = `He evitado ${bot} botellas de plástico con mi #ECOBOTTLE 💧🌍 Hidratación inteligente para un planeta sostenible`;
+  try { if (navigator.share) await navigator.share({text:texto}); else await navigator.clipboard.writeText(texto); } catch(e){}
+  sumar(15, '📲 ¡Gracias por compartir!');
+}
+
+// ---------- Arranque ----------
+if (st.nombre){ document.getElementById('nav').classList.remove('hidden'); ir('inicio'); }
+else ir('onboarding');
+</script>
+</body>
+</html>
